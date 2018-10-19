@@ -1,0 +1,25 @@
+{
+	"database": {
+		"auth": {
+			"host": "examplehost.com",
+			"port": 3306,
+			"username": "example_username",
+			"passwd": "example_password",
+			"dbname": "example_database"
+		},
+		"tables": {
+			"example_table": "rrmaT1dle2frus0Tgp9nmq8cTVfMDLsvjcRVU5RmD7iWWl10RpMFbrsGYiyxJzg8"
+		}
+	},
+	"limits": {
+		"maxInfractionPoints": 10,
+		"rateLimit": 1,
+		"maxHighscoreSize": 100
+	},
+	"globalSecrets": {
+		"appSecret": "OiId3Vk2zIs4ly0giR12joMMOnwcGXVk0uPB2dZ0lWdVyPS8PZ37AjOD7Xj9WyWp"
+	},
+	"globalAppPrivileges": {
+		"example.privilege": 1,
+	}
+}
