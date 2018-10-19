@@ -1,6 +1,7 @@
 <?php
 include_once 'includes/Error.php';
 include_once 'includes/Highscores.php';
+include_once 'includes/MOTD.php';
 include_once 'includes/Network.php';
 include_once 'includes/UUID.php';
 
@@ -758,6 +759,99 @@ class Connector
             else
             {
                 $ret = new Error('unauthorized.highscore_write', 'Writing highscores is not authorized.', Error::UNAUTHORIZED);
+            }
+        }
+        else
+        {
+            $ret = new Error('invalid.param_data_types', 'Invalid parameter data types.', Error::BAD_REQUEST);
+        }
+        if (is_null($ret))
+        {
+            $ret = new Error('empty.response', 'Empty response.', Error::INTERNAL_SERVER_ERROR);
+        }
+        return $ret;
+    }
+
+    /**
+     * Get message of the day
+     *
+     * @return Error|MOTD Message of the day if successful, otherwise error
+     */
+    public function GetMOTD()
+    {
+        $ret = null;
+        if ($this->HasAppPrivilege("motd.read", 1))
+        {
+            if ($this->mysqli instanceof mysqli)
+            {
+                $result = $this->mysqli->query('SELECT `motd` FROM `' . $this->mysqli->real_escape_string($this->ResolveTableName('motds')) . '` ORDER BY `creationDateTime` DESC LIMIT 1;');
+                if ($result instanceof mysqli_result)
+                {
+                    $motd = $result->fetch_object();
+                    if (is_object($motd))
+                    {
+                        if (isset($motd->motd))
+                        {
+                            if (is_string($motd->motd))
+                            {
+                                $ret = new MOTD($motd->motd);
+                            }
+                        }
+                    }
+                    if (is_null($ret))
+                    {
+                        $ret = new MOTD('');
+                    }
+                }
+                else
+                {
+                    $ret = new Error('database.failed_query', 'Failed database query.', Error::INTERNAL_SERVER_ERROR);
+                }
+            }
+            else
+            {
+                $ret = new Error('missing.database_connection', 'Missing database connection.', Error::INTERNAL_SERVER_ERROR);
+            }
+        }
+        else
+        {
+            $ret = new Error('unauthorized.motd_read', 'Reading message of the day is not authorized.', Error::UNAUTHORIZED);
+        }
+        if (is_null($ret))
+        {
+            $ret = new Error('empty.response', 'Empty response.', Error::INTERNAL_SERVER_ERROR);
+        }
+        return $ret;
+    }
+    
+    
+    public function SetMOTD($motd)
+    {
+        $ret = null;
+        if (is_string($motd))
+        {
+            if ($this->HasAppPrivilege("motd.write", 1))
+            {
+                if ($this->mysqli instanceof mysqli)
+                {
+                    $result = $this->mysqli->query('INSERT INTO `' . $this->mysqli->real_escape_string($this->ResolveTableName('motds')) . '` (`uuid`, `motd`) VALUES (\'' . $this->mysqli->real_escape_string(UUID::Create()) . '\', \'' . $this->mysqli->real_escape_string($motd) . '\');');
+                    if ($result === false)
+                    {
+                        $ret = new Error('database.failed_query', 'Failed database query.', Error::INTERNAL_SERVER_ERROR);
+                    }
+                    else
+                    {
+                        $ret = new MOTD($motd);
+                    }
+                }
+                else
+                {
+                    $ret = new Error('missing.database_connection', 'Missing database connection.', Error::INTERNAL_SERVER_ERROR);
+                }
+            }
+            else
+            {
+                $ret = new Error('unauthorized.motd_write', 'Writing message of the day is not authorized.', Error::UNAUTHORIZED);
             }
         }
         else

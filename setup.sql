@@ -146,7 +146,7 @@ ENGINE = InnoDB;
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `highscore_backend`.`motds` (
   `uuid` VARCHAR(36) NOT NULL,
-  `message` TEXT NOT NULL,
+  `motd` TEXT NOT NULL,
   `creationDateTime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`uuid`))
 ENGINE = InnoDB;

@@ -166,9 +166,9 @@ try
                 }
                 else
                 {
-                    if (isset($request->userUUID) && isset($request->highscores))
+                    if (isset($request->appName) && isset($request->userUUID) && isset($request->highscores))
                     {
-                        if (is_string($request->userUUID) && is_object($request->highscores))
+                        if (is_string($request->appName) && is_string($request->userUUID) && is_object($request->highscores))
                         {
                             if (isset($request->highscores->highscores) && isset($request->highscores->baseRank) && isset($request->highscores->id))
                             {
@@ -196,7 +196,7 @@ try
                                     }
                                     if ($success)
                                     {
-                                        $connector = InitConnectorWithUser($_GET['appName'], $request->userUUID, $response);
+                                        $connector = InitConnectorWithUser($request->appName, $request->userUUID, $response);
                                         if ($connector instanceof Connector)
                                         {
                                             $response = $connector->PostHighscore($request->userUUID, new Highscores($request->highscores));
