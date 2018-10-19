@@ -40,7 +40,14 @@ class Connector
      *
      * @var integer
      */
-    private $rateLimit = 1;
+    private $rateLimit = 10;
+    
+    /**
+     * Rate limit time
+     *
+     * @var integer
+     */
+    private $rateLimitTime = 2;
 
     /**
      * Maximal highscore size
@@ -150,6 +157,13 @@ class Connector
                                 if (is_int($config->limits->rateLimit))
                                 {
                                     $this->rateLimit = $config->limits->rateLimit;
+                                }
+                            }
+                            if (isset($config->limits->rateLimitTime))
+                            {
+                                if (is_int($config->limits->rateLimitTime))
+                                {
+                                    $this->rateLimitTime = $config->limits->rateLimitTime;
                                 }
                             }
                             if (isset($config->limits->maxHighscoreSize))
@@ -462,10 +476,10 @@ class Connector
         $ret = false;
         if ($this->mysqli instanceof mysqli)
         {
-            $result = $this->mysqli->query('SELECT `uuid` FROM `' . $this->mysqli->real_escape_string($this->ResolveTableName('activities')) . '` WHERE `appName`=\'' . $this->mysqli->real_escape_string($this->appName) . '\' AND `ip`=\'' . $this->mysqli->real_escape_string(Network::GetClientIPAddress()) . '\' AND (`creationDateTime` + ' . $this->rateLimit . ') >= NOW() LIMIT 1;');
+            $result = $this->mysqli->query('SELECT `uuid` FROM `' . $this->mysqli->real_escape_string($this->ResolveTableName('activities')) . '` WHERE `appName`=\'' . $this->mysqli->real_escape_string($this->appName) . '\' AND `ip`=\'' . $this->mysqli->real_escape_string(Network::GetClientIPAddress()) . '\' AND (`creationDateTime` + ' . $this->rateLimitTime . ') >= NOW() LIMIT ' . $this->rateLimit . ';');
             if ($result instanceof mysqli_result)
             {
-                $ret = ($result->num_rows > 0);
+                $ret = ($result->num_rows >= $this->rateLimit);
                 $result->close();
                 unset($result);
             }

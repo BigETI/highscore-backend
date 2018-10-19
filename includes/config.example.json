@@ -13,13 +13,17 @@
 	},
 	"limits": {
 		"maxInfractionPoints": 10,
-		"rateLimit": 1,
+		"rateLimit": 10,
+		"rateLimitTime": 2,
 		"maxHighscoreSize": 100
 	},
 	"globalSecrets": {
 		"appSecret": "OiId3Vk2zIs4ly0giR12joMMOnwcGXVk0uPB2dZ0lWdVyPS8PZ37AjOD7Xj9WyWp"
 	},
 	"globalAppPrivileges": {
-		"example.privilege": 1,
+		"highscores.read": 1,
+		"highscores.write": 0,
+		"motd.read": 1,
+		"motd.write": 0
 	}
 }
