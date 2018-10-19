@@ -41,7 +41,7 @@ class Connector
      * @var integer
      */
     private $rateLimit = 10;
-    
+
     /**
      * Rate limit time
      *
@@ -567,69 +567,82 @@ class Connector
      *
      * @param string $userUUID
      *            User UUID
+     * @param integer $entries
+     *            Entries
      * @return Error|Highscores Online highscore if successful, otherwise error
      */
-    public function GetOnlineHighscore($userUUID)
+    public function GetOnlineHighscore($userUUID, $entries)
     {
         $ret = null;
-        if (is_string($userUUID))
+        if (is_string($userUUID) && is_int($entries))
         {
             if ($this->HasAppPrivilege("highscore.read", 1))
             {
-                if ($this->mysqli instanceof mysqli)
+                if ($entries > 0)
                 {
-                    $base_rank = 1;
-                    $highscores_table = $this->mysqli->real_escape_string($this->ResolveTableName('highscores'));
-                    $result = $this->mysqli->query('SET @rowNumber=0;');
-                    if ($result !== false)
+                    if ($entries > $this->maxHighscoreSize)
                     {
-                        unset($result);
-                        $result = $this->mysqli->query('SELECT `rank` FROM (SELECT `t`.*, (@rowNumber := @rowNumber + 1) AS `rank` FROM `' . $highscores_table . '` AS `t`, (SELECT @rowNumber := 0) AS `r` ORDER BY `score` DESC, `tries` DESC, `level` DESC, `name` ASC) AS `a` WHERE `userUUID`=\'' . $this->mysqli->real_escape_string($userUUID) . '\' LIMIT 1;');
-                        if ($result instanceof mysqli_result)
+                        $entries = $this->maxHighscoreSize;
+                    }
+                    if ($this->mysqli instanceof mysqli)
+                    {
+                        $base_rank = 1;
+                        $highscores_table = $this->mysqli->real_escape_string($this->ResolveTableName('highscores'));
+                        $result = $this->mysqli->query('SET @rowNumber=0;');
+                        if ($result !== false)
                         {
-                            $obj = $result->fetch_object();
-                            if (is_object($obj))
+                            unset($result);
+                            $result = $this->mysqli->query('SELECT `rank` FROM (SELECT `t`.*, (@rowNumber := @rowNumber + 1) AS `rank` FROM `' . $highscores_table . '` AS `t`, (SELECT @rowNumber := 0) AS `r` ORDER BY `score` DESC, `tries` DESC, `level` DESC, `name` ASC) AS `a` WHERE `userUUID`=\'' . $this->mysqli->real_escape_string($userUUID) . '\' LIMIT 1;');
+                            if ($result instanceof mysqli_result)
                             {
-                                if (isset($obj->rank))
+                                $obj = $result->fetch_object();
+                                if (is_object($obj))
                                 {
-                                    if (is_number($obj->rank))
+                                    if (isset($obj->rank))
                                     {
-                                        $base_rank = intval($obj->rank);
+                                        if (is_number($obj->rank))
+                                        {
+                                            $base_rank = intval($obj->rank);
+                                        }
                                     }
                                 }
+                                $result->close();
+                                unset($result);
                             }
+                        }
+                        $result = $this->mysqli->query('SELECT `score`, `tries`, `level`, `name` FROM `' . $highscores_table . '` ORDER BY `score` DESC, `tries` DESC, `level` DESC, `name` ASC LIMIT ' . ($base_rank - 1) . ', ' . $entries . ';');
+                        if ($result instanceof mysqli_result)
+                        {
+                            $highscores = array();
+                            while (is_object($highscore = $result->fetch_object()))
+                            {
+                                if (isset($highscore->name))
+                                {
+                                    if (is_string($highscore->name))
+                                    {
+                                        $this->ApplyBadWordsFilter($highscore->name);
+                                    }
+                                }
+                                $highscores[] = new Highscore($highscore);
+                            }
+                            $ret = new Highscores($highscores, $base_rank, $this->appSecret);
                             $result->close();
                             unset($result);
+                            $this->AddActivity('Get online highscore');
                         }
-                    }
-                    $result = $this->mysqli->query('SELECT `score`, `tries`, `level`, `name` FROM `' . $highscores_table . '` ORDER BY `score` DESC, `tries` DESC, `level` DESC, `name` ASC LIMIT ' . ($base_rank - 1) . ', 100;');
-                    if ($result instanceof mysqli_result)
-                    {
-                        $highscores = array();
-                        while (is_object($highscore = $result->fetch_object()))
+                        else
                         {
-                            if (isset($highscore->name))
-                            {
-                                if (is_string($highscore->name))
-                                {
-                                    $this->ApplyBadWordsFilter($highscore->name);
-                                }
-                            }
-                            $highscores[] = new Highscore($highscore);
+                            $ret = new Error('database.failed_query', 'Failed database query.', Error::INTERNAL_SERVER_ERROR);
                         }
-                        $ret = new Highscores($highscores, $base_rank, $this->appSecret);
-                        $result->close();
-                        unset($result);
-                        $this->AddActivity('Get online highscore');
                     }
                     else
                     {
-                        $ret = new Error('database.failed_query', 'Failed database query.', Error::INTERNAL_SERVER_ERROR);
+                        $ret = new Error('missing.database_connection', 'Missing database connection.', Error::INTERNAL_SERVER_ERROR);
                     }
                 }
                 else
                 {
-                    $ret = new Error('missing.database_connection', 'Missing database connection.', Error::INTERNAL_SERVER_ERROR);
+                    $ret = new Error('invalid.param_data', 'Invalid parameter data.', Error::BAD_REQUEST);
                 }
             }
             else
@@ -653,43 +666,56 @@ class Connector
      *
      * @param string $userUUID
      *            User UUID
+     * @param integer $entries
+     *            Entries
      * @return Error|Highscores Local highscore if successful, otherwise error
      */
-    public function GetLocalHighscore($userUUID)
+    public function GetLocalHighscore($userUUID, $entries)
     {
         $ret = null;
-        if (is_string($userUUID))
+        if (is_string($userUUID) && is_int($entries))
         {
             if ($this->HasAppPrivilege("highscore.read", 1))
             {
-                if ($this->mysqli instanceof mysqli)
+                if ($entries > 0)
                 {
-                    $result = $this->mysqli->query('SELECT `score`, `tries`, `level`, `name` FROM `' . $this->mysqli->real_escape_string($this->ResolveTableName('highscores')) . '` WHERE `userUUID`=\'' . $this->mysqli->real_escape_string($userUUID) . '\' ORDER BY `score` DESC, `tries` DESC, `level` DESC, `name` ASC LIMIT ' . $this->maxHighscoreSize . ';');
-                    if ($result instanceof mysqli_result)
+                    if ($entries > $this->maxHighscoreSize)
                     {
-                        $highscores = array();
-                        while (is_object($highscore = $result->fetch_object()))
+                        $entries = $this->maxHighscoreSize;
+                    }
+                    if ($this->mysqli instanceof mysqli)
+                    {
+                        $result = $this->mysqli->query('SELECT `score`, `tries`, `level`, `name` FROM `' . $this->mysqli->real_escape_string($this->ResolveTableName('highscores')) . '` WHERE `userUUID`=\'' . $this->mysqli->real_escape_string($userUUID) . '\' ORDER BY `score` DESC, `tries` DESC, `level` DESC, `name` ASC LIMIT ' . $entries . ';');
+                        if ($result instanceof mysqli_result)
                         {
-                            if (isset($highscore->name))
+                            $highscores = array();
+                            while (is_object($highscore = $result->fetch_object()))
                             {
-                                if (is_string($highscore->name))
+                                if (isset($highscore->name))
                                 {
-                                    $this->ApplyBadWordsFilter($highscore->name);
+                                    if (is_string($highscore->name))
+                                    {
+                                        $this->ApplyBadWordsFilter($highscore->name);
+                                    }
                                 }
+                                $highscores[] = new Highscore($highscore);
                             }
-                            $highscores[] = new Highscore($highscore);
+                            $ret = new Highscores($highscores, 1, $this->appSecret);
+                            $this->AddActivity('Get local highscore');
                         }
-                        $ret = new Highscores($highscores, 1, $this->appSecret);
-                        $this->AddActivity('Get local highscore');
+                        else
+                        {
+                            $ret = new Error('database.failed_query', 'Failed database query.', Error::INTERNAL_SERVER_ERROR);
+                        }
                     }
                     else
                     {
-                        $ret = new Error('database.failed_query', 'Failed database query.', Error::INTERNAL_SERVER_ERROR);
+                        $ret = new Error('missing.database_connection', 'Missing database connection.', Error::INTERNAL_SERVER_ERROR);
                     }
                 }
                 else
                 {
-                    $ret = new Error('missing.database_connection', 'Missing database connection.', Error::INTERNAL_SERVER_ERROR);
+                    $ret = new Error('invalid.param_data', 'Invalid parameter data.', Error::BAD_REQUEST);
                 }
             }
             else
@@ -837,8 +863,7 @@ class Connector
         }
         return $ret;
     }
-    
-    
+
     public function SetMOTD($motd)
     {
         $ret = null;

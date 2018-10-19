@@ -62,78 +62,93 @@ try
                     switch ($_GET['mode'])
                     {
                         case 'online':
-                            if (isset($_GET['userUUID']))
+                            $entries = 100;
+                            if (isset($_GET['entries']))
                             {
-                                if (is_string($_GET['userUUID']))
+                                if (is_number($_GET['entries']))
                                 {
-                                    $user_uuid = $_GET['userUUID'];
-                                    $connector = InitConnectorWithUser($_GET['appName'], $user_uuid, $response);
-                                    if ($connector instanceof Connector)
+                                    $entries = intval($_GET['entries']);
+                                    if ($entries < 1)
                                     {
-                                        $response = $connector->GetOnlineHighscore($user_uuid);
+                                        $response = new Error('invalid.entries', 'Entries value "' . $entries . '" is invalid.', Error::BAD_REQUEST);
+                                    }
+                                }
+                            }
+                            if (is_null($response))
+                            {
+                                if (isset($_GET['userUUID']))
+                                {
+                                    if (is_string($_GET['userUUID']))
+                                    {
+                                        $user_uuid = $_GET['userUUID'];
+                                        $connector = InitConnectorWithUser($_GET['appName'], $user_uuid, $response);
+                                        if ($connector instanceof Connector)
+                                        {
+                                            $response = $connector->GetOnlineHighscore($user_uuid, $entries);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        $response = new Error('invalid.user_uuid_type', "Invalid data type for user UUID.", Error::BAD_REQUEST);
                                     }
                                 }
                                 else
                                 {
-                                    $response = new Error('invalid.user_uuid_type', "Invalid data type for user UUID.", Error::BAD_REQUEST);
-                                }
-                            }
-                            else
-                            {
-                                $base_rank = 1;
-                                $entries = 100;
-                                if (isset($_GET['baseRank']))
-                                {
-                                    if (is_number($_GET['baseRank']))
+                                    $base_rank = 1;
+                                    if (isset($_GET['baseRank']))
                                     {
-                                        $base_rank = intval($_GET['baseRank']);
-                                        if ($base_rank < 1)
+                                        if (is_number($_GET['baseRank']))
                                         {
-                                            $response = new Error('invalid.base_rank', 'Base rank value "' . $base_rank . '" is invalid.', Error::BAD_REQUEST);
-                                        }
-                                    }
-                                }
-                                if (is_null($response))
-                                {
-                                    if (isset($_GET['entries']))
-                                    {
-                                        if (is_number($_GET['entries']))
-                                        {
-                                            $entries = intval($_GET['entries']);
+                                            $base_rank = intval($_GET['baseRank']);
                                             if ($base_rank < 1)
                                             {
-                                                $response = new Error('invalid.entries', 'Entries value "' . $entries . '" is invalid.', Error::BAD_REQUEST);
+                                                $response = new Error('invalid.base_rank', 'Base rank value "' . $base_rank . '" is invalid.', Error::BAD_REQUEST);
                                             }
                                         }
                                     }
-                                }
-                                $connector = InitConnector($_GET['appName'], $response);
-                                if ($connector instanceof Connector)
-                                {
-                                    $response = $connector->GetHighscore($base_rank, $entries);
+                                    $connector = InitConnector($_GET['appName'], $response);
+                                    if ($connector instanceof Connector)
+                                    {
+                                        $response = $connector->GetHighscore($base_rank, $entries);
+                                    }
                                 }
                             }
                             break;
                         case 'local':
-                            if (isset($_GET['userUUID']))
+                            $entries = 100;
+                            if (isset($_GET['entries']))
                             {
-                                if (is_string($_GET['userUUID']))
+                                if (is_number($_GET['entries']))
                                 {
-                                    $user_uuid = $_GET['userUUID'];
-                                    $connector = InitConnectorWithUser($_GET['appName'], $user_uuid, $response);
-                                    if ($connector instanceof Connector)
+                                    $entries = intval($_GET['entries']);
+                                    if ($entries < 1)
                                     {
-                                        $response = $connector->GetOnlineHighscore($user_uuid);
+                                        $response = new Error('invalid.entries', 'Entries value "' . $entries . '" is invalid.', Error::BAD_REQUEST);
+                                    }
+                                }
+                            }
+                            if (is_null($response))
+                            {
+                                if (isset($_GET['userUUID']))
+                                {
+                                    if (is_string($_GET['userUUID']))
+                                    {
+                                        $user_uuid = $_GET['userUUID'];
+                                        $connector = InitConnectorWithUser($_GET['appName'], $user_uuid, $response);
+                                        if ($connector instanceof Connector)
+                                        {
+                                            $response = $connector->GetLocalHighscore($user_uuid, $entries);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        $response = new Error('invalid.user_uuid_type', "Invalid data type for user UUID.", Error::BAD_REQUEST);
                                     }
                                 }
                                 else
                                 {
-                                    $response = new Error('invalid.user_uuid_type', "Invalid data type for user UUID.", Error::BAD_REQUEST);
+                                    $response = new Error('missing.mode_user_uuid', 'User UUID is missing for mode "local".', Error::BAD_REQUEST);
                                 }
-                            }
-                            else
-                            {
-                                $response = new Error('missing.mode_user_uuid', 'User UUID is missing for mode "local".', Error::BAD_REQUEST);
                             }
                             break;
                         default:
