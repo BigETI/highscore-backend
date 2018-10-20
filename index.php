@@ -1,4 +1,5 @@
 <?php
+header('Content-Type: application/json');
 include_once 'includes/Connector.php';
 
 $response = null;
@@ -29,7 +30,7 @@ function InitConnector($appName, &$response)
 }
 
 /**
- * Initialize conmnector with user
+ * Initialize connector with user
  *
  * @param string $appName
  *            Application name

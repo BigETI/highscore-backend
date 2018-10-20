@@ -526,7 +526,7 @@ class Connector
         $ret = null;
         if (is_int($baseRank) && is_int($entries))
         {
-            if ($this->HasAppPrivilege("highscore.read", 1))
+            if ($this->HasAppPrivilege("highscores.read", 1))
             {
                 if (($baseRank > 0) && ($entries > 0))
                 {
@@ -601,7 +601,7 @@ class Connector
         $ret = null;
         if (is_string($userUUID) && is_int($entries))
         {
-            if ($this->HasAppPrivilege("highscore.read", 1))
+            if ($this->HasAppPrivilege("highscores.read", 1))
             {
                 if ($entries > 0)
                 {
@@ -700,7 +700,7 @@ class Connector
         $ret = null;
         if (is_string($userUUID) && is_int($entries))
         {
-            if ($this->HasAppPrivilege("highscore.read", 1))
+            if ($this->HasAppPrivilege("highscores.read", 1))
             {
                 if ($entries > 0)
                 {
@@ -773,7 +773,7 @@ class Connector
         $ret = false;
         if (is_string($userUUID) && ($highscores instanceof Highscores))
         {
-            if ($this->HasAppPrivilege("highscore.write", 1))
+            if ($this->HasAppPrivilege("highscores.write", 1))
             {
                 if ($this->mysqli instanceof mysqli)
                 {
