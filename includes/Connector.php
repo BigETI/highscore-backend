@@ -900,13 +900,13 @@ class Connector
                         {
                             if (is_string($motd->motd))
                             {
-                                $ret = new MOTD($motd->motd);
+                                $ret = MOTD::NewMOTD($motd->motd);
                             }
                         }
                     }
                     if (is_null($ret))
                     {
-                        $ret = new MOTD('');
+                        $ret = MOTD::NewMOTD('');
                     }
                     $result->close();
                     unset($result);
@@ -935,14 +935,14 @@ class Connector
     /**
      * Set message of the day
      *
-     * @param string $motd
-     *            Message of the day
+     * @param MOTD $motd
+     *            MOTD object
      * @return Error|MOTD Accepted message of the day if successful, otherwise error
      */
     public function SetMOTD($motd)
     {
         $ret = null;
-        if (is_string($motd))
+        if (is_object($motd))
         {
             if ($this->HasAppPrivilege("motd.write", 1))
             {
@@ -955,7 +955,7 @@ class Connector
                     }
                     else
                     {
-                        $ret = new MOTD($motd);
+                        $ret = MOTD::NewMOTD($motd);
                     }
                 }
                 else

@@ -130,7 +130,11 @@ class Highscores implements IJSONSerializable
                 $str .= $highscore->GetName() . ';' . $highscore->GetScore() . ';' . $highscore->GetTries() . ';' . $highscore->GetLevel() . '|';
             }
         }
-        $str .= $this->baseRank . '|' . $appSecret;
+        $str .= $this->baseRank;
+        if (is_string($appSecret))
+        {
+            $str .= '|' . $appSecret;
+        }
         return strtolower(hash('sha512', $str));
     }
 

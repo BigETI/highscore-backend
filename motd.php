@@ -71,12 +71,12 @@ try
                 {
                     if (isset($request->appName) && isset($request->motd))
                     {
-                        if (is_string($request->appName) && is_string($request->motd))
+                        if (is_string($request->appName) && is_object($request->motd))
                         {
                             $connector = InitConnector($request->appName, $response);
                             if ($connector instanceof Connector)
                             {
-                                $response = $connector->SetMOTD($request->motd);
+                                $response = $connector->SetMOTD(MOTD::FromRequest($request->motd));
                             }
                         }
                         else
