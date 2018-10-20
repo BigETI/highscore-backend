@@ -3,6 +3,7 @@ include_once 'includes/Error.php';
 include_once 'includes/Highscores.php';
 include_once 'includes/MOTD.php';
 include_once 'includes/Network.php';
+include_once 'includes/UserUUID.php';
 include_once 'includes/UUID.php';
 
 /**
@@ -55,6 +56,13 @@ class Connector
      * @var integer
      */
     private $maxHighscoreSize = 100;
+
+    /**
+     * Application UUID
+     *
+     * @var string
+     */
+    private $appUUID = '';
 
     /**
      * Application name
@@ -220,18 +228,35 @@ class Connector
             $this->appName = $appName;
             if ($this->mysqli instanceof mysqli)
             {
-                $result = $this->mysqli->query('SELECT `name`, `secret` FROM `' . $this->appsTable . '` WHERE `name`=\'' . $this->mysqli->real_escape_string($appName) . '\' LIMIT 1;');
+                $result = $this->mysqli->query('SELECT `uuid`, `name`, `secret` FROM `' . $this->mysqli->real_escape_string($this->ResolveTableName('apps')) . '` WHERE `name`=\'' . $this->mysqli->real_escape_string($appName) . '\' LIMIT 1;');
                 if ($result instanceof mysqli_result)
                 {
                     $app = $result->fetch_object();
                     if (is_object($app))
                     {
-                        if (isset($app->name) && isset($app->secret))
+                        if (isset($app->uuid) && isset($app->name) && isset($app->secret))
                         {
-                            if (is_string($app->name) && is_string($app->secret))
+                            if (is_string($app->uuid) && is_string($app->name) && is_string($app->secret))
                             {
+                                $this->appUUID = $app->uuid;
                                 $this->appName = $app->name;
                                 $this->appSecret = $app->secret;
+                                $inner_result = $this->mysqli->query('SELECT `privilege`, `value` FROM `' . $this->mysqli->real_escape_string($this->ResolveTableName('appPrivileges')) . '` WHERE `appUUID`=\'' . $this->mysqli->real_escape_string($this->appUUID) . '\';');
+                                if ($inner_result instanceof mysqli_result)
+                                {
+                                    while (is_object($privilege = $inner_result->fetch_object()))
+                                    {
+                                        if (isset($privilege->privilege) && isset($privilege->value))
+                                        {
+                                            if (is_string($privilege->privilege) && is_numeric($privilege->value))
+                                            {
+                                                $this->appPrivileges[$privilege->privilege] = intval($privilege->value);
+                                            }
+                                        }
+                                    }
+                                    $inner_result->close();
+                                    unset($inner_result);
+                                }
                             }
                         }
                     }
@@ -336,7 +361,7 @@ class Connector
      */
     private function ApplyBadWordsFilter(&$str)
     {
-        $this->InitBadWord();
+        $this->InitBadWords();
         str_replace($this->badWords, $this->badWordsReplaceWith, $str);
     }
 
@@ -352,7 +377,7 @@ class Connector
             $ret = UUID::Create();
             $result = $this->mysqli->query('INSERT INTO `' . $this->mysqli->real_escape_string($this->ResolveTableName('users')) . '` (`uuid`) VALUES (\'' . $this->mysqli->real_escape_string($ret) . '\');');
         }
-        while ($result !== false);
+        while ($result === false);
         $this->AddActivity('Create new user');
         return $ret;
     }
@@ -451,7 +476,7 @@ class Connector
                 {
                     if (isset($obj->totalPoints))
                     {
-                        if (is_number($obj->totalPoints))
+                        if (is_numeric($obj->totalPoints))
                         {
                             $total_points = intval($obj->totalPoints);
                             $ret = ($total_points >= $this->maxInfractionPoints);
@@ -511,8 +536,8 @@ class Connector
                         {
                             $entries = $this->maxHighscoreSize;
                         }
-                        $result = $this->mysqli->query('SELECT `score`, `tries`, `level`, `name` FROM `' + $this->mysqli->real_escape_string($this->ResolveTableName('highscores')) + '` ORDER BY `score` DESC, `tries` DESC, `level` DESC, `name` ASC LIMIT ' . ($baseRank - 1) . ', ' . $entries . ';');
-                        if (is_object($result))
+                        $result = $this->mysqli->query('SELECT `score`, `tries`, `level`, `name` FROM `' . $this->mysqli->real_escape_string($this->ResolveTableName('highscores')) . '` ORDER BY `score` DESC, `tries` DESC, `level` DESC, `name` ASC LIMIT ' . ($baseRank - 1) . ', ' . $entries . ';');
+                        if ($result instanceof mysqli_result)
                         {
                             $highscores = array();
                             while (($highscore = $result->fetch_object()) != null)
@@ -526,7 +551,7 @@ class Connector
                                 }
                                 $highscores[] = new Highscore($highscore);
                             }
-                            $ret = new Highscores($highscores, 1, $this->appSecret);
+                            $ret = Highscores::NewHighscore($highscores, 1, $this->appSecret);
                             $result->close();
                             unset($result);
                             $this->AddActivity('Get highscore');
@@ -600,7 +625,7 @@ class Connector
                                 {
                                     if (isset($obj->rank))
                                     {
-                                        if (is_number($obj->rank))
+                                        if (is_numeric($obj->rank))
                                         {
                                             $base_rank = intval($obj->rank);
                                         }
@@ -625,7 +650,7 @@ class Connector
                                 }
                                 $highscores[] = new Highscore($highscore);
                             }
-                            $ret = new Highscores($highscores, $base_rank, $this->appSecret);
+                            $ret = Highscores::NewHighscore($highscores, $base_rank, $this->appSecret);
                             $result->close();
                             unset($result);
                             $this->AddActivity('Get online highscore');
@@ -700,7 +725,7 @@ class Connector
                                 }
                                 $highscores[] = new Highscore($highscore);
                             }
-                            $ret = new Highscores($highscores, 1, $this->appSecret);
+                            $ret = Highscores::NewHighscore($highscores, 1, $this->appSecret);
                             $this->AddActivity('Get local highscore');
                         }
                         else
@@ -755,35 +780,76 @@ class Connector
                     if ($highscores->Validate($this->appSecret))
                     {
                         $ret = new UserUUID($this->InitUser($userUUID));
-                        $query = 'INSERT IGNORE INTO `' . $this->mysqli->real_escape_string($this->ResolveTableName('highscores')) . '` (`uuid`, `userUUID`, `score`, `tries`, `level`, `name`) VALUES ';
-                        $first = true;
-                        foreach ($highscores->GetHighscores() as $highscore)
+                        $highscores_table = $this->mysqli->real_escape_string($this->ResolveTableName('highscores'));
+                        $result = $this->mysqli->query('SELECT `score`, `tries`, `level`, `name` FROM `' . $highscores_table . '` WHERE `userUUID`=\'' . $this->mysqli->real_escape_string($userUUID) . '\'');
+                        if ($result instanceof mysqli_result)
                         {
-                            if ($highscore instanceof Highscore)
+                            $result_highscores = array();
+                            $append_highscores = array();
+                            while (is_object($highscore = $result->fetch_object()))
                             {
-                                if ($first)
+                                if (isset($highscore->score) && isset($highscore->tries) && isset($highscore->level) && isset($highscore->name))
                                 {
-                                    $first = false;
+                                    if (is_numeric($highscore->score) && is_numeric($highscore->tries) && is_numeric($highscore->level) && is_string($highscore->name))
+                                    {
+                                        $result_highscores[] = new Highscore($highscore);
+                                    }
+                                }
+                            }
+                            foreach ($highscores->GetHighscores() as $highscore)
+                            {
+                                if ($highscore instanceof Highscore)
+                                {
+                                    $append = true;
+                                    foreach ($result_highscores as $h)
+                                    {
+                                        if (($highscore->GetScore() === $h->GetScore()) && ($highscore->GetTries() === $h->GetTries()) && ($highscore->GetLevel() === $h->GetLevel()) && ($highscore->GetName() === $h->GetName()))
+                                        {
+                                            $append = false;
+                                            break;
+                                        }
+                                    }
+                                    if ($append)
+                                    {
+                                        $append_highscores[] = $highscore;
+                                    }
+                                }
+                            }
+                            if (count($append_highscores) > 0)
+                            {
+                                $query = 'INSERT IGNORE INTO `' . $highscores_table . '` (`uuid`, `userUUID`, `score`, `tries`, `level`, `name`) VALUES ';
+                                $first = true;
+                                foreach ($append_highscores as $highscore)
+                                {
+                                    if ($first)
+                                    {
+                                        $first = false;
+                                    }
+                                    else
+                                    {
+                                        $query .= ', ';
+                                    }
+                                    $query .= '(\'' . $this->mysqli->real_escape_string(UUID::Create()) . '\', \'' . $this->mysqli->real_escape_string($ret->GetUserUUID()) . '\', ' . $highscore->GetScore() . ', ' . $highscore->GetTries() . ', ' . $highscore->GetLevel() . ', \'' . $this->mysqli->real_escape_string($highscore->GetName()) . '\')';
+                                }
+                                $query .= ';';
+                                $result = $this->mysqli->query($query);
+                                if ($result === false)
+                                {
+                                    $ret = new Error('database.failed_query', 'Failed database query.', Error::INTERNAL_SERVER_ERROR);
                                 }
                                 else
                                 {
-                                    $query .= ', ';
+                                    $this->AddActivity('Post highscore');
                                 }
-                                $query .= '(\'' . $this->mysqli->real_escape_string(UUID::Create()) . '\', \'' . $this->mysqli->real_escape_string($ret->GetUserUUID()) . '\', ' . $highscore->GetScore() . ', ' . $highscore->GetTries() . ', ' . $highscore->GetLevel() . ', ' . $this->mysqli->real_escape_string($highscore->GetName()) . ')';
-                            }
-                        }
-                        if (! $first)
-                        {
-                            $query .= ';';
-                            $result = $this->mysqli->query($query);
-                            if ($result === false)
-                            {
-                                $ret = new Error('database.failed_query', 'Failed database query.', Error::INTERNAL_SERVER_ERROR);
                             }
                             else
                             {
                                 $this->AddActivity('Post highscore');
                             }
+                        }
+                        else
+                        {
+                            $ret = new Error('database.failed_query', 'Failed database query.', Error::INTERNAL_SERVER_ERROR);
                         }
                     }
                     else
@@ -842,6 +908,8 @@ class Connector
                     {
                         $ret = new MOTD('');
                     }
+                    $result->close();
+                    unset($result);
                 }
                 else
                 {
@@ -864,6 +932,13 @@ class Connector
         return $ret;
     }
 
+    /**
+     * Set message of the day
+     *
+     * @param string $motd
+     *            Message of the day
+     * @return Error|MOTD Accepted message of the day if successful, otherwise error
+     */
     public function SetMOTD($motd)
     {
         $ret = null;

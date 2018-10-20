@@ -65,7 +65,7 @@ try
                             $entries = 100;
                             if (isset($_GET['entries']))
                             {
-                                if (is_number($_GET['entries']))
+                                if (is_numeric($_GET['entries']))
                                 {
                                     $entries = intval($_GET['entries']);
                                     if ($entries < 1)
@@ -97,7 +97,7 @@ try
                                     $base_rank = 1;
                                     if (isset($_GET['baseRank']))
                                     {
-                                        if (is_number($_GET['baseRank']))
+                                        if (is_numeric($_GET['baseRank']))
                                         {
                                             $base_rank = intval($_GET['baseRank']);
                                             if ($base_rank < 1)
@@ -118,7 +118,7 @@ try
                             $entries = 100;
                             if (isset($_GET['entries']))
                             {
-                                if (is_number($_GET['entries']))
+                                if (is_numeric($_GET['entries']))
                                 {
                                     $entries = intval($_GET['entries']);
                                     if ($entries < 1)
@@ -174,6 +174,7 @@ try
             }
             else
             {
+                $json = rawurldecode($json);
                 $request = json_decode($json);
                 if (is_null($request))
                 {
@@ -196,7 +197,7 @@ try
                                         {
                                             if (isset($highscore->score) && isset($highscore->tries) && isset($highscore->level) && isset($highscore->name))
                                             {
-                                                if ((! is_number($highscore->score)) || (! is_int($highscore->tries)) || (! is_int($highscore->level)) || (! is_string($highscore->name)))
+                                                if ((! is_numeric($highscore->score)) || (! is_int($highscore->tries)) || (! is_int($highscore->level)) || (! is_string($highscore->name)))
                                                 {
                                                     $success = false;
                                                     break;
@@ -214,7 +215,7 @@ try
                                         $connector = InitConnectorWithUser($request->appName, $request->userUUID, $response);
                                         if ($connector instanceof Connector)
                                         {
-                                            $response = $connector->PostHighscore($request->userUUID, new Highscores($request->highscores));
+                                            $response = $connector->PostHighscore($request->userUUID, Highscores::FromRequest($request->highscores));
                                         }
                                     }
                                     else

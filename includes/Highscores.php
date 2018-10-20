@@ -32,51 +32,74 @@ class Highscores implements IJSONSerializable
     private $id = '';
 
     /**
-     * Constructor
-     *
-     * @param object $highscores
-     *            Highscore
+     * Default constructor
      */
-    function __construct($highscores)
+    function __construct()
     {
-        if (is_object($highscores))
-        {
-            if (is_array($highscores->highscores))
-            {
-                $this->highscores = $highscores->highscores;
-            }
-            if (is_int($highscores->baseRank))
-            {
-                $this->baseRank = $highscores->baseRank;
-            }
-            if (is_string($highscores->id))
-            {
-                $this->id = $highscores->id;
-            }
-        }
+        // ...
     }
 
     /**
-     * Constructor
+     * From request
+     *
+     * @param object $highscores
+     *            Highscore
+     * @return Highscores Highscore
+     */
+    public static function FromRequest($highscores)
+    {
+        $ret = new self();
+        if (is_object($highscores))
+        {
+            if (isset($highscores->highscores) && isset($highscores->baseRank) && isset($highscores->id))
+            {
+                if (is_array($highscores->highscores))
+                {
+                    foreach ($highscores->highscores as $highscore)
+                    {
+                        if (is_object($highscore))
+                        {
+                            $ret->highscores[] = new Highscore($highscore);
+                        }
+                    }
+                }
+                if (is_int($highscores->baseRank))
+                {
+                    $ret->baseRank = $highscores->baseRank;
+                }
+                if (is_string($highscores->id))
+                {
+                    $ret->id = $highscores->id;
+                }
+            }
+        }
+        return $ret;
+    }
+
+    /**
+     * New highscore
      *
      * @param array $highscores
-     *            Highscores
+     *            Highscore entries
      * @param integer $baseRank
      *            Base rank
      * @param string $appSecret
      *            Application secret
+     * @return Highscores Highscore
      */
-    function __construct($highscores, $baseRank, $appSecret)
+    public static function NewHighscore($highscores, $baseRank, $appSecret)
     {
+        $ret = new self();
         if (is_array($highscores))
         {
-            $this->highscores = $highscores;
+            $ret->highscores = $highscores;
         }
         if (is_int($baseRank))
         {
-            $this->baseRank = $baseRank;
+            $ret->baseRank = $baseRank;
         }
-        $this->Init($appSecret);
+        $ret->Init($appSecret);
+        return $ret;
     }
 
     /**
@@ -97,7 +120,7 @@ class Highscores implements IJSONSerializable
      *            Application secret
      * @return string Hash
      */
-    private function CreateHash($appSecret)
+    public function CreateHash($appSecret)
     {
         $str = '';
         foreach ($this->highscores as $highscore)
@@ -108,7 +131,7 @@ class Highscores implements IJSONSerializable
             }
         }
         $str .= $this->baseRank . '|' . $appSecret;
-        return hash('sha512', $str);
+        return strtolower(hash('sha512', $str));
     }
 
     /**
@@ -144,15 +167,15 @@ class Highscores implements IJSONSerializable
     /**
      * Validate
      *
-     * @param string $hashKey
-     *            Hash key
+     * @param string $appSecret
+     *            Application secret
      * @return boolean "true" if valid, otherwise "false"
      */
-    public function Validate($hashKey)
+    public function Validate($appSecret)
     {
-        return ($this->id === CreateHash($hashKey));
+        return ($this->id === $this->CreateHash($appSecret));
     }
-    
+
     /**
      *
      * {@inheritdoc}
@@ -165,7 +188,7 @@ class Highscores implements IJSONSerializable
         {
             $ret['highscores'][$key] = $highscore->GetObjectVars();
         }
-        return json_encode();
+        return json_encode($ret);
     }
 }
 ?>
