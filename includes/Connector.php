@@ -536,7 +536,7 @@ class Connector
                         {
                             $entries = $this->maxHighscoreSize;
                         }
-                        $result = $this->mysqli->query('SELECT `score`, `tries`, `level`, `name` FROM `' . $this->mysqli->real_escape_string($this->ResolveTableName('highscores')) . '` ORDER BY `score` DESC, `tries` DESC, `level` DESC, `name` ASC LIMIT ' . ($baseRank - 1) . ', ' . $entries . ';');
+                        $result = $this->mysqli->query('SELECT `score`, `tries`, `level`, `name` FROM `' . $this->mysqli->real_escape_string($this->ResolveTableName('highscores')) . '` ORDER BY `score` DESC, `tries` ASC, `level` DESC, `name` ASC LIMIT ' . ($baseRank - 1) . ', ' . $entries . ';');
                         if ($result instanceof mysqli_result)
                         {
                             $highscores = array();
@@ -617,7 +617,7 @@ class Connector
                         if ($result !== false)
                         {
                             unset($result);
-                            $result = $this->mysqli->query('SELECT `rank` FROM (SELECT `t`.*, (@rowNumber := @rowNumber + 1) AS `rank` FROM `' . $highscores_table . '` AS `t`, (SELECT @rowNumber := 0) AS `r` ORDER BY `score` DESC, `tries` DESC, `level` DESC, `name` ASC) AS `a` WHERE `userUUID`=\'' . $this->mysqli->real_escape_string($userUUID) . '\' LIMIT 1;');
+                            $result = $this->mysqli->query('SELECT `rank` FROM (SELECT `t`.*, (@rowNumber := @rowNumber + 1) AS `rank` FROM `' . $highscores_table . '` AS `t`, (SELECT @rowNumber := 0) AS `r` ORDER BY `score` DESC, `tries` ASC, `level` DESC, `name` ASC) AS `a` WHERE `userUUID`=\'' . $this->mysqli->real_escape_string($userUUID) . '\' LIMIT 1;');
                             if ($result instanceof mysqli_result)
                             {
                                 $obj = $result->fetch_object();
@@ -635,7 +635,7 @@ class Connector
                                 unset($result);
                             }
                         }
-                        $result = $this->mysqli->query('SELECT `score`, `tries`, `level`, `name` FROM `' . $highscores_table . '` ORDER BY `score` DESC, `tries` DESC, `level` DESC, `name` ASC LIMIT ' . ($base_rank - 1) . ', ' . $entries . ';');
+                        $result = $this->mysqli->query('SELECT `score`, `tries`, `level`, `name` FROM `' . $highscores_table . '` ORDER BY `score` DESC, `tries` ASC, `level` DESC, `name` ASC LIMIT ' . ($base_rank - 1) . ', ' . $entries . ';');
                         if ($result instanceof mysqli_result)
                         {
                             $highscores = array();
@@ -710,7 +710,7 @@ class Connector
                     }
                     if ($this->mysqli instanceof mysqli)
                     {
-                        $result = $this->mysqli->query('SELECT `score`, `tries`, `level`, `name` FROM `' . $this->mysqli->real_escape_string($this->ResolveTableName('highscores')) . '` WHERE `userUUID`=\'' . $this->mysqli->real_escape_string($userUUID) . '\' ORDER BY `score` DESC, `tries` DESC, `level` DESC, `name` ASC LIMIT ' . $entries . ';');
+                        $result = $this->mysqli->query('SELECT `score`, `tries`, `level`, `name` FROM `' . $this->mysqli->real_escape_string($this->ResolveTableName('highscores')) . '` WHERE `userUUID`=\'' . $this->mysqli->real_escape_string($userUUID) . '\' ORDER BY `score` DESC, `tries` ASC, `level` DESC, `name` ASC LIMIT ' . $entries . ';');
                         if ($result instanceof mysqli_result)
                         {
                             $highscores = array();
