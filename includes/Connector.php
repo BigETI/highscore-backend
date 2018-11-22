@@ -358,11 +358,12 @@ class Connector
      *
      * @param string $str
      *            String reference
+     * @return string String without bad words
      */
-    private function ApplyBadWordsFilter(&$str)
+    private function ApplyBadWordsFilter($str)
     {
         $this->InitBadWords();
-        str_replace($this->badWords, $this->badWordsReplaceWith, $str);
+        return str_ireplace($this->badWords, $this->badWordsReplaceWith, $str);
     }
 
     /**
@@ -546,7 +547,7 @@ class Connector
                                 {
                                     if (is_string($highscore->name))
                                     {
-                                        $this->ApplyBadWordsFilter($highscore->name);
+                                        $highscore->name = $this->ApplyBadWordsFilter($highscore->name);
                                     }
                                 }
                                 $highscores[] = new Highscore($highscore);
@@ -645,7 +646,7 @@ class Connector
                                 {
                                     if (is_string($highscore->name))
                                     {
-                                        $this->ApplyBadWordsFilter($highscore->name);
+                                        $highscore->name = $this->ApplyBadWordsFilter($highscore->name);
                                     }
                                 }
                                 $highscores[] = new Highscore($highscore);
@@ -720,7 +721,7 @@ class Connector
                                 {
                                     if (is_string($highscore->name))
                                     {
-                                        $this->ApplyBadWordsFilter($highscore->name);
+                                        $highscore->name = $this->ApplyBadWordsFilter($highscore->name);
                                     }
                                 }
                                 $highscores[] = new Highscore($highscore);

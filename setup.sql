@@ -40,7 +40,7 @@ ENGINE = InnoDB;
 -- Table `highscore_backend`.`bans`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `highscore_backend`.`bans` (
-  `uuid` INT NOT NULL,
+  `uuid` VARCHAR(36) NOT NULL,
   `ip` VARCHAR(48) NOT NULL,
   `reason` TINYTEXT NOT NULL,
   `creationDateTime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
