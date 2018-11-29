@@ -22,8 +22,6 @@ CREATE TABLE IF NOT EXISTS `highscore_backend`.`highscores` (
   `uuid` VARCHAR(36) NOT NULL,
   `userUUID` VARCHAR(36) NOT NULL,
   `score` BIGINT UNSIGNED NOT NULL,
-  `tries` INT UNSIGNED NOT NULL,
-  `level` INT UNSIGNED NOT NULL,
   `name` VARCHAR(32) NOT NULL,
   `creationDateTime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`uuid`, `userUUID`),
