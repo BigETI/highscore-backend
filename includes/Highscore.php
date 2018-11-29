@@ -1,5 +1,6 @@
 <?php
 include_once 'includes/IJSONSerializable.php';
+include_once 'includes/HighscoreField.php';
 
 /**
  * Highscore class
@@ -11,91 +12,72 @@ class Highscore implements IJSONSerializable
 {
 
     /**
-     * Score
-     *
-     * @var integer
-     */
-    private $score = 0;
-
-    /**
-     * Tries
-     *
-     * @var integer
-     */
-    private $tries = 0;
-
-    /**
-     * Level
-     *
-     * @var integer
-     */
-    private $level = 0;
-
-    /**
-     * Name
-     *
-     * @var string
-     */
-    private $name = '';
-
-    /**
      * Constructor
      *
      * @param object $highscore
      *            Highscore
+     * @param array $highscoreFields
+     *            Highscore fields
      */
-    function __construct($highscore)
+    function __construct($highscore, $highscoreFields)
     {
-        if (isset($highscore->score) && isset($highscore->tries) && isset($highscore->level) && isset($highscore->name))
+        if (is_object($highscore) && is_array($highscoreFields))
         {
-            if (is_numeric($highscore->score) && is_numeric($highscore->tries) && is_numeric($highscore->level) && is_string($highscore->name))
+            foreach ($highscoreFields as $highscore_field)
             {
-                $this->score = intval($highscore->score);
-                $this->tries = intval($highscore->tries);
-                $this->level = intval($highscore->level);
-                $this->name = $highscore->name;
+                if ($highscore_field instanceof HighscoreField)
+                {
+                    $field = $highscore_field->GetField();
+                    if (isset($highscore->$field))
+                    {
+                        if ($highscore_field->IsNumeric())
+                        {
+                            if (is_numeric($highscore->$field))
+                            {
+                                $this->$field = intval($highscore->$field);
+                            }
+                        }
+                        else if (is_string($highscore->$field))
+                        {
+                            $this->$field = $highscore->$field;
+                        }
+                    }
+                }
             }
         }
     }
 
     /**
-     * Get score
+     * Equals
      *
-     * @return integer Score
+     * @param Highscore $highscore
+     *            Highscore
+     * @param array $highscoreFields
+     *            Highscore fields
+     * @return boolean "true" if equals, otherwise "false"
      */
-    public function GetScore()
+    public function Equals($highscore, $highscoreFields)
     {
-        return $this->score;
-    }
-
-    /**
-     * Get tries
-     *
-     * @return integer Tries
-     */
-    public function GetTries()
-    {
-        return $this->tries;
-    }
-
-    /**
-     * Get level
-     *
-     * @return integer Level
-     */
-    public function GetLevel()
-    {
-        return $this->level;
-    }
-
-    /**
-     * Get name
-     *
-     * @return string Name
-     */
-    public function GetName()
-    {
-        return $this->name;
+        $ret = true;
+        if (is_array($highscoreFields))
+        {
+            foreach ($highscoreFields as $highscore_field)
+            {
+                if ($highscore_field instanceof HighscoreField)
+                {
+                    $field = $highscore_field->GetField();
+                    if (isset($this->$field) && isset($highscore->$field))
+                    {
+                        if ($this->$field !== $highscore->$field)
+                        {
+                            $ret = false;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return $ret;
     }
 
     /**

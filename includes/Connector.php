@@ -3,6 +3,7 @@ include_once 'includes/Error.php';
 include_once 'includes/Highscores.php';
 include_once 'includes/MOTD.php';
 include_once 'includes/Network.php';
+include_once 'includes/HighscoreField.php';
 include_once 'includes/UserUUID.php';
 include_once 'includes/UUID.php';
 
@@ -28,6 +29,20 @@ class Connector
      * @var array
      */
     private $tables = array();
+
+    /**
+     * Highscore fields
+     *
+     * @var array
+     */
+    private $highscoreFields = array();
+    
+    /**
+     * Hash order
+     *
+     * @var array
+     */
+    private $hashOrder = array();
 
     /**
      * Maximal infraction points
@@ -144,6 +159,38 @@ class Connector
                                     if (is_string($alias) && is_string($table))
                                     {
                                         $this->tables[$alias] = $table;
+                                    }
+                                }
+                            }
+                        }
+                        if (isset($config->database->highscoreFields))
+                        {
+                            if (is_array($config->database->highscoreFields))
+                            {
+                                foreach ($config->database->highscoreFields as $highscore_fields)
+                                {
+                                    if (is_object($highscore_fields))
+                                    {
+                                        if (isset($highscore_fields->field) && isset($highscore_fields->sortCriteria) && isset($highscore_fields->isNumeric))
+                                        {
+                                            if (is_string($highscore_fields->field) && is_int($highscore_fields->sortCriteria) && is_bool($highscore_fields->isNumeric))
+                                            {
+                                                $this->highscoreFields[] = new HighscoreField($highscore_fields->field, $highscore_fields->sortCriteria, $highscore_fields->isNumeric);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if (isset($config->database->hashOrder))
+                        {
+                            if (is_array($config->database->hashOrder))
+                            {
+                                foreach ($config->database->hashOrder as $field)
+                                {
+                                    if (is_string($field))
+                                    {
+                                        $this->hashOrder[] = $field;
                                     }
                                 }
                             }
@@ -424,6 +471,80 @@ class Connector
     }
 
     /**
+     * Get highscore fields
+     *
+     * @return string Highscore fields
+     */
+    private function GetHighscoreFields()
+    {
+        $ret = '';
+        $first = true;
+        if ($this->mysqli instanceof mysqli)
+        {
+            foreach ($this->highscoreFields as $highscore_field)
+            {
+                if ($highscore_field instanceof HighscoreField)
+                {
+                    if ($first)
+                    {
+                        $first = false;
+                    }
+                    else
+                    {
+                        $ret .= ', ';
+                    }
+                    $ret .= '`' . $this->mysqli->real_escape_string($highscore_field->GetField()) . '`';
+                }
+            }
+        }
+        return $ret;
+    }
+
+    /**
+     * Get highscore sort criteria
+     *
+     * @return string Sort criteria
+     */
+    private function GetHighscoreSortCriteria()
+    {
+        $ret = '';
+        $first = true;
+        if ($this->mysqli instanceof mysqli)
+        {
+            foreach ($this->highscoreFields as $highscore_field)
+            {
+                if ($highscore_field instanceof HighscoreField)
+                {
+                    $sort_criteria = false;
+                    switch ($highscore_field->GetSortCriteria())
+                    {
+                        case 0:
+                            $sort_criteria = 'ASC';
+                            break;
+                        case 1:
+                            $sort_criteria = 'DESC';
+                            break;
+                    }
+                    if ($sort_criteria !== false)
+                    {
+                        if ($first)
+                        {
+                            $first = false;
+                            $ret = ' ORDER BY ';
+                        }
+                        else
+                        {
+                            $ret .= ', ';
+                        }
+                        $ret .= '`' . $this->mysqli->real_escape_string($highscore_field->GetField()) . '` ' . $sort_criteria;
+                    }
+                }
+            }
+        }
+        return $ret;
+    }
+
+    /**
      * Is banned
      *
      * @return boolean "true" if banned, otherwise "false"
@@ -537,7 +658,7 @@ class Connector
                         {
                             $entries = $this->maxHighscoreSize;
                         }
-                        $result = $this->mysqli->query('SELECT `score`, `tries`, `level`, `name` FROM `' . $this->mysqli->real_escape_string($this->ResolveTableName('highscores')) . '` ORDER BY `score` DESC, `tries` ASC, `level` DESC, `name` ASC LIMIT ' . ($baseRank - 1) . ', ' . $entries . ';');
+                        $result = $this->mysqli->query('SELECT ' . $this->GetHighscoreFields() . ' FROM `' . $this->mysqli->real_escape_string($this->ResolveTableName('highscores')) . '`' . $this->GetHighscoreSortCriteria() . ' LIMIT ' . ($baseRank - 1) . ', ' . $entries . ';');
                         if ($result instanceof mysqli_result)
                         {
                             $highscores = array();
@@ -550,9 +671,9 @@ class Connector
                                         $highscore->name = $this->ApplyBadWordsFilter($highscore->name);
                                     }
                                 }
-                                $highscores[] = new Highscore($highscore);
+                                $highscores[] = new Highscore($highscore, $this->highscoreFields);
                             }
-                            $ret = Highscores::NewHighscore($highscores, 1, $this->appSecret);
+                            $ret = Highscores::NewHighscore($highscores, 1, $this->appSecret, $this->hashOrder);
                             $result->close();
                             unset($result);
                             $this->AddActivity('Get highscore');
@@ -613,12 +734,13 @@ class Connector
                     if ($this->mysqli instanceof mysqli)
                     {
                         $base_rank = 1;
+                        $highscore_sort_criteria = $this->GetHighscoreSortCriteria();
                         $highscores_table = $this->mysqli->real_escape_string($this->ResolveTableName('highscores'));
                         $result = $this->mysqli->query('SET @rowNumber=0;');
                         if ($result !== false)
                         {
                             unset($result);
-                            $result = $this->mysqli->query('SELECT `rank` FROM (SELECT `t`.*, (@rowNumber := @rowNumber + 1) AS `rank` FROM `' . $highscores_table . '` AS `t`, (SELECT @rowNumber := 0) AS `r` ORDER BY `score` DESC, `tries` ASC, `level` DESC, `name` ASC) AS `a` WHERE `userUUID`=\'' . $this->mysqli->real_escape_string($userUUID) . '\' LIMIT 1;');
+                            $result = $this->mysqli->query('SELECT `rank` FROM (SELECT `t`.*, (@rowNumber := @rowNumber + 1) AS `rank` FROM `' . $highscores_table . '` AS `t`, (SELECT @rowNumber := 0) AS `r`' . $highscore_sort_criteria . ') AS `a` WHERE `userUUID`=\'' . $this->mysqli->real_escape_string($userUUID) . '\' LIMIT 1;');
                             if ($result instanceof mysqli_result)
                             {
                                 $obj = $result->fetch_object();
@@ -636,7 +758,7 @@ class Connector
                                 unset($result);
                             }
                         }
-                        $result = $this->mysqli->query('SELECT `score`, `tries`, `level`, `name` FROM `' . $highscores_table . '` ORDER BY `score` DESC, `tries` ASC, `level` DESC, `name` ASC LIMIT ' . ($base_rank - 1) . ', ' . $entries . ';');
+                        $result = $this->mysqli->query('SELECT ' . $this->GetHighscoreFields() . ' FROM `' . $highscores_table . '`' . $highscore_sort_criteria . ' LIMIT ' . ($base_rank - 1) . ', ' . $entries . ';');
                         if ($result instanceof mysqli_result)
                         {
                             $highscores = array();
@@ -649,9 +771,9 @@ class Connector
                                         $highscore->name = $this->ApplyBadWordsFilter($highscore->name);
                                     }
                                 }
-                                $highscores[] = new Highscore($highscore);
+                                $highscores[] = new Highscore($highscore, $this->highscoreFields);
                             }
-                            $ret = Highscores::NewHighscore($highscores, $base_rank, $this->appSecret);
+                            $ret = Highscores::NewHighscore($highscores, $base_rank, $this->appSecret, $this->hashOrder);
                             $result->close();
                             unset($result);
                             $this->AddActivity('Get online highscore');
@@ -711,7 +833,7 @@ class Connector
                     }
                     if ($this->mysqli instanceof mysqli)
                     {
-                        $result = $this->mysqli->query('SELECT `score`, `tries`, `level`, `name` FROM `' . $this->mysqli->real_escape_string($this->ResolveTableName('highscores')) . '` WHERE `userUUID`=\'' . $this->mysqli->real_escape_string($userUUID) . '\' ORDER BY `score` DESC, `tries` ASC, `level` DESC, `name` ASC LIMIT ' . $entries . ';');
+                        $result = $this->mysqli->query('SELECT ' . $this->GetHighscoreFields() . ' FROM `' . $this->mysqli->real_escape_string($this->ResolveTableName('highscores')) . '` WHERE `userUUID`=\'' . $this->mysqli->real_escape_string($userUUID) . '\'' . $this->GetHighscoreSortCriteria() . ' LIMIT ' . $entries . ';');
                         if ($result instanceof mysqli_result)
                         {
                             $highscores = array();
@@ -724,9 +846,9 @@ class Connector
                                         $highscore->name = $this->ApplyBadWordsFilter($highscore->name);
                                     }
                                 }
-                                $highscores[] = new Highscore($highscore);
+                                $highscores[] = new Highscore($highscore, $this->highscoreFields);
                             }
-                            $ret = Highscores::NewHighscore($highscores, 1, $this->appSecret);
+                            $ret = Highscores::NewHighscore($highscores, 1, $this->appSecret, $this->hashOrder);
                             $this->AddActivity('Get local highscore');
                         }
                         else
@@ -778,11 +900,12 @@ class Connector
             {
                 if ($this->mysqli instanceof mysqli)
                 {
-                    if ($highscores->Validate($this->appSecret))
+                    if ($highscores->Validate($this->appSecret, $this->hashOrder))
                     {
                         $ret = new UserUUID($this->InitUser($userUUID));
                         $highscores_table = $this->mysqli->real_escape_string($this->ResolveTableName('highscores'));
-                        $result = $this->mysqli->query('SELECT `score`, `tries`, `level`, `name` FROM `' . $highscores_table . '` WHERE `userUUID`=\'' . $this->mysqli->real_escape_string($userUUID) . '\'');
+                        $highscore_fields = $this->GetHighscoreFields();
+                        $result = $this->mysqli->query('SELECT ' . $highscore_fields . ' FROM `' . $highscores_table . '` WHERE `userUUID`=\'' . $this->mysqli->real_escape_string($userUUID) . '\'');
                         if ($result instanceof mysqli_result)
                         {
                             $result_highscores = array();
@@ -793,7 +916,7 @@ class Connector
                                 {
                                     if (is_numeric($highscore->score) && is_numeric($highscore->tries) && is_numeric($highscore->level) && is_string($highscore->name))
                                     {
-                                        $result_highscores[] = new Highscore($highscore);
+                                        $result_highscores[] = new Highscore($highscore, $this->highscoreFields);
                                     }
                                 }
                             }
@@ -804,7 +927,7 @@ class Connector
                                     $append = true;
                                     foreach ($result_highscores as $h)
                                     {
-                                        if (($highscore->GetScore() === $h->GetScore()) && ($highscore->GetTries() === $h->GetTries()) && ($highscore->GetLevel() === $h->GetLevel()) && ($highscore->GetName() === $h->GetName()))
+                                        if ($highscore->Equals($h, $this->highscoreFields))
                                         {
                                             $append = false;
                                             break;
@@ -818,7 +941,7 @@ class Connector
                             }
                             if (count($append_highscores) > 0)
                             {
-                                $query = 'INSERT IGNORE INTO `' . $highscores_table . '` (`uuid`, `userUUID`, `score`, `tries`, `level`, `name`) VALUES ';
+                                $query = 'INSERT IGNORE INTO `' . $highscores_table . '` (`uuid`, `userUUID`, ' . $highscore_fields . ') VALUES ';
                                 $first = true;
                                 foreach ($append_highscores as $highscore)
                                 {
@@ -830,7 +953,30 @@ class Connector
                                     {
                                         $query .= ', ';
                                     }
-                                    $query .= '(\'' . $this->mysqli->real_escape_string(UUID::Create()) . '\', \'' . $this->mysqli->real_escape_string($ret->GetUserUUID()) . '\', ' . $highscore->GetScore() . ', ' . $highscore->GetTries() . ', ' . $highscore->GetLevel() . ', \'' . $this->mysqli->real_escape_string($highscore->GetName()) . '\')';
+                                    //$query .= '(\'' . $this->mysqli->real_escape_string(UUID::Create()) . '\', \'' . $this->mysqli->real_escape_string($ret->GetUserUUID()) . '\', ' . $highscore->GetScore() . ', ' . $highscore->GetTries() . ', ' . $highscore->GetLevel() . ', \'' . $this->mysqli->real_escape_string($highscore->GetName()) . '\')';
+                                    $query .= '(\'' . $this->mysqli->real_escape_string(UUID::Create()) . '\', \'' . $this->mysqli->real_escape_string($ret->GetUserUUID()) . '\'';
+                                    foreach ($this->highscoreFields as $highscore_field)
+                                    {
+                                        if ($highscore_field instanceof HighscoreField)
+                                        {
+                                            $field = $highscore_field->GetField();
+                                            if (isset($highscore->$field))
+                                            {
+                                                if ($highscore_field->IsNumeric())
+                                                {
+                                                    if (is_int($highscore->$field))
+                                                    {
+                                                        $query .= ', ' . $highscore->$field;
+                                                    }
+                                                }
+                                                else if (is_string($highscore->$field))
+                                                {
+                                                    $query .= ', \'' . $this->mysqli->real_escape_string($highscore->$field) . '\'';
+                                                }
+                                            }
+                                        }
+                                    }
+                                    $query .= ')';
                                 }
                                 $query .= ';';
                                 $result = $this->mysqli->query($query);

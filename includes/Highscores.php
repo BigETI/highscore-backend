@@ -1,5 +1,6 @@
 <?php
 include_once 'includes/Highscore.php';
+include_once 'includes/HighscoreField.php';
 
 /**
  * Highscores class
@@ -85,9 +86,11 @@ class Highscores implements IJSONSerializable
      *            Base rank
      * @param string $appSecret
      *            Application secret
+     * @param array $hashOrder
+     *            Hash order
      * @return Highscores Highscore
      */
-    public static function NewHighscore($highscores, $baseRank, $appSecret)
+    public static function NewHighscore($highscores, $baseRank, $appSecret, $hashOrder)
     {
         $ret = new self();
         if (is_array($highscores))
@@ -98,7 +101,7 @@ class Highscores implements IJSONSerializable
         {
             $ret->baseRank = $baseRank;
         }
-        $ret->Init($appSecret);
+        $ret->Init($appSecret, $hashOrder);
         return $ret;
     }
 
@@ -107,10 +110,12 @@ class Highscores implements IJSONSerializable
      *
      * @param string $appSecret
      *            Application secret
+     * @param array $hashOrder
+     *            Hash order
      */
-    private function Init($appSecret)
+    private function Init($appSecret, $hashOrder)
     {
-        $this->id = $this->CreateHash($appSecret);
+        $this->id = $this->CreateHash($appSecret, $hashOrder);
     }
 
     /**
@@ -118,16 +123,37 @@ class Highscores implements IJSONSerializable
      *
      * @param string $appSecret
      *            Application secret
+     * @param array $hashOrder
+     *            Hash order
      * @return string Hash
      */
-    public function CreateHash($appSecret)
+    public function CreateHash($appSecret, $hashOrder)
     {
         $str = '';
         foreach ($this->highscores as $highscore)
         {
             if ($highscore instanceof Highscore)
             {
-                $str .= $highscore->GetName() . ';' . $highscore->GetScore() . ';' . $highscore->GetTries() . ';' . $highscore->GetLevel() . '|';
+                $first = true;
+                if (is_array($hashOrder))
+                {
+                    foreach ($hashOrder as $field)
+                    {
+                        if (isset($highscore->$field))
+                        {
+                            if ($first)
+                            {
+                                $first = false;
+                            }
+                            else
+                            {
+                                $str .= ';';
+                            }
+                            $str .= $highscore->$field;
+                        }
+                    }
+                }
+                $str .= '|';
             }
         }
         $str .= $this->baseRank;
@@ -173,11 +199,13 @@ class Highscores implements IJSONSerializable
      *
      * @param string $appSecret
      *            Application secret
+     * @param array $hashOrder
+     *            Hash order
      * @return boolean "true" if valid, otherwise "false"
      */
-    public function Validate($appSecret)
+    public function Validate($appSecret, $hashOrder)
     {
-        return ($this->id === $this->CreateHash($appSecret));
+        return ($this->id === $this->CreateHash($appSecret, $hashOrder));
     }
 
     /**

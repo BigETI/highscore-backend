@@ -9,7 +9,23 @@
 		},
 		"tables": {
 			"example_table": "rrmaT1dle2frus0Tgp9nmq8cTVfMDLsvjcRVU5RmD7iWWl10RpMFbrsGYiyxJzg8"
-		}
+		},
+		"highscoreFields": [
+			{
+				"field": "score",
+				"sortCriteria": 1,
+				"isNumeric": true
+			},
+			{
+				"field": "name",
+				"sortCriteria": 0,
+				"isNumeric": false
+			}
+		],
+		"hashOrder": [
+			"name",
+			"score"
+		]
 	},
 	"limits": {
 		"maxInfractionPoints": 10,
